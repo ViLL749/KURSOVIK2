@@ -1,101 +1,7 @@
 import tkinter as tk
 from tkinter import ttk
-import random
 import sqlite3
-import string
-from datetime import datetime, timedelta
-
-# Заполнение рандомом
-# def add_sample_records():
-#     for record in records:
-#         try:
-#             conn = sqlite3.connect('data.db')
-#             c = conn.cursor()
-#
-#             # Генерация случайной даты и типа работы
-#             random_date = generate_random_date()
-#             random_job_type = generate_job_type()
-#
-#             c.execute('''INSERT INTO clients (fio, date, car_make, car_model, job_type, cost, vin, phone, car_color, license_plate)
-#                          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)''',
-#                          (record['name'],
-#                           random_date,  # Используем случайную дату
-#                           random.choice(["Toyota", "Honda", "BMW"]),
-#                           random.choice(["Corolla", "Camry", "Rav4", "Civic", "Accord", "CR-V", "3 Series", "5 Series", "X5"]),
-#                           random_job_type,  # Используем случайный тип работы
-#                           random.randint(1000, 10000),  # Примерная стоимость
-#                           ''.join(random.choices(string.ascii_uppercase + string.digits, k=17)),  # Генерация случайного VIN
-#                           record['phone'],
-#                           random.choice(["Красный", "Черный", "Белый", "Синий"]),
-#                           record['gov_number']))
-#             conn.commit()
-#             conn.close()
-#             print(f"Запись {record['name']} добавлена в базу данных.")
-#         except sqlite3.Error as e:
-#             print("Ошибка при добавлении записи в базу данных:", e)
-#
-#
-# # Возможные буквы для гос. номера
-# gov_number_letters = ['А', 'В', 'Е', 'К', 'М', 'Н', 'О', 'Р', 'С', 'Т', 'У', 'Х']
-#
-# def generate_gov_number():
-#     # Формат X000XX00
-#     first_letter = random.choice(gov_number_letters)  # случайная буква из указанного набора
-#     middle_numbers = random.randint(100, 999)  # три цифры
-#     second_letter = random.choice(gov_number_letters)  # случайная буква из указанного набора
-#     last_numbers = random.randint(10, 99)  # две цифры
-#     return f"{first_letter}{middle_numbers}{second_letter}{last_numbers}"
-#
-#
-#
-# def generate_phone_number():
-#     return f"+7 ({random.randint(900, 999)}) {random.randint(100, 999)}-{random.randint(10, 99)}-{random.randint(10, 99)}"
-#
-#
-# def generate_name():
-#     first_names = ['Алексей', 'Дмитрий', 'Екатерина', 'Мария', 'Иван', 'Светлана', 'Ольга', 'Максим', 'Анастасия',
-#                    'Петр']
-#     last_names = ['Иванов', 'Петров', 'Сидоров', 'Михайлов', 'Кузнецов', 'Новиков', 'Козлов', 'Попов', 'Смирнов',
-#                   'Федоров']
-#     patronymics = ['Алексеевич', 'Дмитриевич', 'Иванович', 'Михайлович', 'Петрович', 'Сергеевич', 'Анатольевич',
-#                    'Федорович', 'Владимирович', 'Станиславович']
-#
-#     first_name = random.choice(first_names)
-#     last_name = random.choice(last_names)
-#     patronymic = random.choice(patronymics)
-#
-#     return f"{first_name} {last_name} {patronymic}"
-#
-# # Генерация случайной даты
-# def generate_random_date(start_year=2000, end_year=2024):
-#     start_date = datetime(start_year, 1, 1)
-#     end_date = datetime(end_year, 12, 31)
-#     delta = end_date - start_date
-#     random_day = start_date + timedelta(days=random.randint(0, delta.days))
-#     return random_day.strftime('%d.%m.%Y')
-#
-# # Генерация случайного типа работы
-# job_types = ['Ремонт двигателя', 'Замена тормозных колодок', 'Замена масла', 'Диагностика подвески', 'Ремонт трансмиссии', 'Ремонт кузова', 'Шиномонтаж']
-#
-# def generate_job_type():
-#     return random.choice(job_types)
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+from tkinter import messagebox
 
 
 # Функция для создания таблицы, если она не существует
@@ -108,7 +14,7 @@ def initialize_database():
                  date TEXT, 
                  car_make TEXT, 
                  car_model TEXT, 
-                 job_type TEXT, 
+                 job_type TEXT,   -- сохраняем пару "тип работы : цена"
                  cost REAL,
                  vin TEXT,
                  phone TEXT,
@@ -117,41 +23,178 @@ def initialize_database():
     conn.commit()
     conn.close()
 
-# Функция для сохранения данных
+# Глобальная переменная для хранения итоговой стоимости
+total_cost_global = 0  # Это будет итоговая стоимость, которая будет использована в функции save_data
+
+
+def open_calculate_cost_window():
+    print("open_calculate_cost_window вызвано")
+
+    job_types = entry_job_type.get().split(',')  # Разбиваем строку на типы работ
+
+    if not job_types or job_types == ['']:
+        messagebox.showwarning("Ошибка", "Типы работы не были выбраны")
+        return
+
+    calculate_window = tk.Toplevel(root)
+    calculate_window.title("Рассчитать сумму")
+
+    cost_entries = {}  # Словарь для хранения пар "тип работы : стоимость"
+
+    # Создаем поля для ввода стоимости для каждого типа работы
+    row = 0
+    for job in job_types:
+        job = job.strip()
+        if job:
+            label = tk.Label(calculate_window, text=f"Стоимость для {job}:")
+            label.grid(row=row, column=0, padx=5, pady=5, sticky="e")
+            cost_entry = tk.Entry(calculate_window)
+            cost_entry.grid(row=row, column=1, padx=5, pady=5, sticky="we")
+            cost_entries[job] = cost_entry  # Сохраняем поле ввода для каждого типа работы
+            row += 1
+
+    # Функция для расчета итоговой суммы
+    def calculate():
+        total_cost = 0
+        job_cost_pairs = []  # Список для хранения пар "тип работы : стоимость"
+
+        # Суммируем стоимости для каждого типа работы
+        for job, entry in cost_entries.items():
+            try:
+                cost_value = float(entry.get())  # Преобразуем введенную стоимость в число
+                total_cost += cost_value
+                job_cost_pairs.append(f"{job}:{cost_value:.2f}")  # Добавляем пару "тип работы : стоимость"
+            except ValueError:
+                pass  # Если введена некорректная стоимость, игнорируем
+
+        entry_total.config(text=f"Итого: {total_cost:.2f}")  # Отображаем итоговую сумму
+        global total_cost_global
+        total_cost_global = total_cost  # Обновляем глобальную переменную с итоговой суммой
+
+        # Обновляем глобальную переменную job_costs
+        global job_costs
+        job_costs = job_cost_pairs  # Сохраняем пары "тип работы : стоимость" в глобальную переменную
+
+        calculate_window.destroy()  # Закрываем окно калькулятора
+
+    button_calculate = tk.Button(calculate_window, text="Рассчитать", command=calculate)
+    button_calculate.grid(row=row, columnspan=2, padx=5, pady=10)
+
+
+
+
+
+
+
+
 def save_data():
+    global total_cost_global
+    print(f"total_cost_global перед сохранением: {total_cost_global}")
+
+    if total_cost_global <= 0:
+        messagebox.showwarning("Ошибка", "Сумма не была рассчитана.")
+        return
+
     fio = entry_fio.get()
     date = entry_date.get()
     car_make = combo_car_make.get()
     car_model = combo_car_model.get()
-    job_type = entry_job_type.get()
-    cost = entry_cost.get()
     vin = entry_vin.get()
     phone = entry_phone_number.get()
     car_color = entry_car_color.get()
     license_plate = entry_license_plate.get()
 
+    # Разбиваем типы работ из поля ввода
+    job_type = entry_job_type.get()
+    job_types = job_type.split(',')
+
+    # Преобразуем типы работ в строку, разделенную запятой
+    job_type_str = ', '.join([job.strip() for job in job_types if job.strip()])  # Убираем лишние пробелы
+
     try:
         conn = sqlite3.connect('data.db')
         c = conn.cursor()
+        # Сохраняем только типы работ, без стоимости
         c.execute('''INSERT INTO clients (fio, date, car_make, car_model, job_type, cost, vin, phone, car_color, license_plate) 
-                     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)''', (fio, date, car_make, car_model, job_type, cost, vin, phone, car_color, license_plate))
+                     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)''',
+                  (fio, date, car_make, car_model, job_type_str, total_cost_global, vin, phone, car_color,
+                   license_plate))
         conn.commit()
         conn.close()
+
         print("Данные успешно сохранены в базе данных.")
         update_database_view()
+
+        # Очистка глобальной переменной после сохранения
+        total_cost_global = 0  # Сбрасываем итоговую стоимость
+
     except sqlite3.Error as e:
         print("Ошибка при работе с базой данных:", e)
 
+    # Очистка полей после сохранения данных
     entry_fio.delete(0, tk.END)
     entry_date.delete(0, tk.END)
     entry_job_type.delete(0, tk.END)
-    entry_cost.delete(0, tk.END)
     combo_car_make.set('')
     combo_car_model.set('')
     entry_vin.delete(0, tk.END)
     entry_phone_number.delete(0, tk.END)
     entry_car_color.delete(0, tk.END)
     entry_license_plate.delete(0, tk.END)
+    entry_total.config(text="0")
+
+
+def update_data():
+    global total_cost_global
+    selected_item = tree.selection()[0]
+    id = tree.item(selected_item, "values")[0]
+    fio = entry_fio.get()
+    date = entry_date.get()
+    car_make = combo_car_make.get()
+    car_model = combo_car_model.get()
+    job_type = entry_job_type.get()
+    vin = entry_vin.get()
+    phone = entry_phone_number.get()
+    car_color = entry_car_color.get()
+    license_plate = entry_license_plate.get()
+
+    # Разбиваем строку типов работ
+    job_types = job_type.split(',')
+
+    # Преобразуем типы работ в строку, разделенную запятой, для сохранения в базе данных
+    job_type_str = ', '.join([job.strip() for job in job_types if job.strip()])
+
+
+    # Обновляем данные в базе данных
+    try:
+        conn = sqlite3.connect('data.db')
+        c = conn.cursor()
+        c.execute(
+            '''UPDATE clients SET fio=?, date=?, car_make=?, car_model=?, job_type=?, cost=?, vin=?, phone=?, car_color=?, license_plate=? WHERE id=?''',
+            (fio, date, car_make, car_model, job_type_str, total_cost_global, vin, phone, car_color, license_plate, id))
+        conn.commit()
+        conn.close()
+
+
+        print("Данные успешно обновлены в базе данных.")
+        update_database_view()
+
+        # Очистка глобальной переменной после сохранения
+        total_cost_global = 0  # Сбрасываем итоговую стоимость
+
+    except sqlite3.Error as e:
+        print("Ошибка при работе с базой данных:", e)
+
+
+
+
+
+
+
+
+
+
+
 
 def update_car_models(event):
     selected_make = combo_car_make.get()
@@ -170,9 +213,12 @@ def update_database_view():
         tree.insert('', 'end', values=row)
     conn.close()
 
+
 def select_item(event):
     item = tree.selection()[0]
     values = tree.item(item, "values")
+
+    # Обновление полей с данными из выбранной строки
     entry_fio.delete(0, tk.END)
     entry_fio.insert(0, values[1])
     entry_date.delete(0, tk.END)
@@ -181,8 +227,6 @@ def select_item(event):
     combo_car_model.set(values[4])
     entry_job_type.delete(0, tk.END)
     entry_job_type.insert(0, values[5])
-    entry_cost.delete(0, tk.END)
-    entry_cost.insert(0, values[6])
     entry_vin.delete(0, tk.END)
     entry_vin.insert(0, values[7])
     entry_phone_number.delete(0, tk.END)
@@ -192,29 +236,13 @@ def select_item(event):
     entry_license_plate.delete(0, tk.END)
     entry_license_plate.insert(0, values[10])
 
+    # Получаем значение стоимости из 6-го столбца (предположим, что это стоимость)
+    cost = values[6]  # 6-й столбец содержит стоимость
 
-def update_data():
-    selected_item = tree.selection()[0]
-    id = tree.item(selected_item, "values")[0]
-    fio = entry_fio.get()
-    date = entry_date.get()
-    car_make = combo_car_make.get()
-    car_model = combo_car_model.get()
-    job_type = entry_job_type.get()
-    cost = entry_cost.get()
-    vin = entry_vin.get()
-    phone = entry_phone_number.get()
-    car_color = entry_car_color.get()
-    license_plate = entry_license_plate.get()
+    # Обновляем лейбл "Итого"
+    entry_total.config(text=f"Итого: {cost}")  # Обновляем текст лейбла
 
-    conn = sqlite3.connect('data.db')
-    c = conn.cursor()
-    c.execute('''UPDATE clients SET fio=?, date=?, car_make=?, car_model=?, job_type=?, cost=?, vin=?, phone=?, car_color=?, license_plate=? WHERE id=?''',
-              (fio, date, car_make, car_model, job_type, cost, vin, phone, car_color, license_plate, id))
-    conn.commit()
-    conn.close()
 
-    update_database_view()
 
 def delete_data():
     selected_item = tree.selection()[0]
@@ -234,19 +262,14 @@ def add_new_record():
     combo_car_make.set('')
     combo_car_model.set('')
     entry_job_type.delete(0, tk.END)
-    entry_cost.delete(0, tk.END)
     entry_vin.delete(0, tk.END)
     entry_phone_number.delete(0, tk.END)
     entry_car_color.delete(0, tk.END)
     entry_license_plate.delete(0, tk.END)
 
 
-sort_order = 'asc'  # Глобальная переменная для отслеживания порядка сортировки
-
-
-# Функция для сортировки по столбцу
-sort_order = 'asc'  # Глобальная переменная для отслеживания порядка сортировки
-
+# Глобальная переменная для отслеживания порядка сортировки
+sort_order = 'asc'  # Стандартный порядок - по возрастанию
 
 # Функция для сортировки по столбцу
 def sort_by_column(event, column_index):
@@ -270,7 +293,17 @@ def sort_by_column(event, column_index):
     items = [(tree.item(item)['values'], item) for item in tree.get_children()]
 
     # Сортируем элементы в зависимости от выбранного порядка
-    items.sort(key=lambda x: x[0][column_index], reverse=(sort_order == 'desc'))
+    # Преобразуем значение столбца в правильный тип для сортировки:
+    def get_sort_key(values, column_index):
+        value = values[column_index]
+        # Преобразуем в числа для сортировки по числовым значениям
+        try:
+            return float(value)
+        except ValueError:
+            return value  # если не число, то оставляем строку (по алфавиту)
+
+    # Сортируем
+    items.sort(key=lambda x: get_sort_key(x[0], column_index), reverse=(sort_order == 'desc'))
 
     # Очистим и вставим отсортированные данные
     for item in tree.get_children():
@@ -396,15 +429,14 @@ def open_job_type_window():
 
 
 
-
 root = tk.Tk()
 root.title("Автосервис")
 
 
 
 
-root.grid_rowconfigure(12, weight=0)
-root.grid_rowconfigure(13, weight=1)
+root.grid_rowconfigure(14, weight=0)
+root.grid_rowconfigure(15, weight=1)
 root.grid_columnconfigure(1, weight=1)
 
 
@@ -440,62 +472,56 @@ label_job_type.grid(row=4, column=0, padx=5, pady=5, sticky="e")
 entry_job_type = tk.Entry(root)
 entry_job_type.grid(row=4, column=1, padx=5, pady=5, sticky="we")
 
-label_cost = tk.Label(root, text="Рассчетная стоимость:")
-label_cost.grid(row=6, column=0, padx=5, pady=5, sticky="e")
-entry_cost = tk.Entry(root)
-entry_cost.grid(row=6, column=1, padx=5, pady=5, sticky="we")
+# Лейбл для итоговой суммы
+label_total = tk.Label(root, text="Итого: ")
+label_total.grid(row=7, column=0, padx=5, pady=5, sticky="e")
+entry_total = tk.Label(root, text="0")  # Изначально сумма 0
+entry_total.grid(row=7, column=1, padx=5, pady=5, sticky="we")
 
 label_vin = tk.Label(root, text="VIN номер:")
-label_vin.grid(row=7, column=0, padx=5, pady=5, sticky="e")
+label_vin.grid(row=8, column=0, padx=5, pady=5, sticky="e")
 entry_vin = tk.Entry(root)
-entry_vin.grid(row=7, column=1, padx=5, pady=5, sticky="we")
+entry_vin.grid(row=8, column=1, padx=5, pady=5, sticky="we")
 
 label_phone_number = tk.Label(root, text="Номер телефона:")
-label_phone_number.grid(row=8, column=0, padx=5, pady=5, sticky="e")
+label_phone_number.grid(row=9, column=0, padx=5, pady=5, sticky="e")
 entry_phone_number = tk.Entry(root)
-entry_phone_number.grid(row=8, column=1, padx=5, pady=5, sticky="we")
+entry_phone_number.grid(row=9, column=1, padx=5, pady=5, sticky="we")
 
 label_car_color = tk.Label(root, text="Цвет автомобиля:")
-label_car_color.grid(row=9, column=0, padx=5, pady=5, sticky="e")
+label_car_color.grid(row=10, column=0, padx=5, pady=5, sticky="e")
 entry_car_color = tk.Entry(root)
-entry_car_color.grid(row=9, column=1, padx=5, pady=5, sticky="we")
+entry_car_color.grid(row=10, column=1, padx=5, pady=5, sticky="we")
 
 label_license_plate = tk.Label(root, text="Гос номер машины:")
-label_license_plate.grid(row=10, column=0, padx=5, pady=5, sticky="e")
+label_license_plate.grid(row=11, column=0, padx=5, pady=5, sticky="e")
 entry_license_plate = tk.Entry(root)
-entry_license_plate.grid(row=10, column=1, padx=5, pady=5, sticky="we")
+entry_license_plate.grid(row=11, column=1, padx=5, pady=5, sticky="we")
 
 # Кнопки
+button_calculate_cost = tk.Button(root, text="Рассчитать сумму", command=open_calculate_cost_window)
+button_calculate_cost.grid(row=6, column=1, padx=5, pady=5, sticky="we")
+
 button_select_job_type = tk.Button(root, text="Выбрать тип работы", command=open_job_type_window)
 button_select_job_type.grid(row=5, column=1, padx=5, pady=5, sticky="we")
 
 button_save = tk.Button(root, text="Сохранить", command=save_data)
-button_save.grid(row=11, column=1, padx=5, pady=5, sticky="we")
+button_save.grid(row=12, column=1, padx=5, pady=5, sticky="we")
 
 button_update = tk.Button(root, text="Изменить", command=update_data)
-button_update.grid(row=11, column=0, padx=5, pady=10, sticky="we")
+button_update.grid(row=12, column=0, padx=5, pady=10, sticky="we")
 
 button_delete = tk.Button(root, text="Удалить", command=delete_data)
-button_delete.grid(row=12, column=1, padx=5, pady=5, sticky="we")
+button_delete.grid(row=13, column=1, padx=5, pady=5, sticky="we")
 
 button_new_record = tk.Button(root, text="Добавить новую запись", command=add_new_record)
-button_new_record.grid(row=12, column=0, padx=5, pady=5, sticky="we")
+button_new_record.grid(row=13, column=0, padx=5, pady=5, sticky="we")
 
 
 
 # Просмотр базы данных
 tree = ttk.Treeview(root, columns=('ID', 'ФИО', 'Дата поступления', 'Марка', 'Модель', 'Тип работы', 'Стоимость', 'VIN', 'Телефон', 'Цвет автомобиля', 'Гос номер'), show='headings')
-# tree.heading('ID', text='ID')
-# tree.heading('ФИО', text='ФИО')
-# tree.heading('Дата поступления', text='Дата поступления')
-# tree.heading('Марка', text='Марка')
-# tree.heading('Модель', text='Модель')
-# tree.heading('Тип работы', text='Тип работы')
-# tree.heading('Стоимость', text='Стоимость')
-# tree.heading('VIN', text='VIN')
-# tree.heading('Телефон', text='Телефон')
-# tree.heading('Цвет автомобиля', text='Цвет автомобиля')
-# tree.heading('Гос номер', text='Гос номер')
+
 
 tree.heading('ID', text='ID')
 tree.heading('ФИО', text='ФИО', command=lambda: sort_by_column(None, 1))
@@ -523,7 +549,7 @@ tree.column("Цвет автомобиля", width=100)
 tree.column("Гос номер", width=100)
 
 
-tree.grid(row=13, column=0, columnspan=2, padx=5, pady=5, sticky='nsew')
+tree.grid(row=15, column=0, columnspan=2, padx=5, pady=5, sticky='nsew')
 
 tree.bind("<Double-1>", open_details_window)
 tree.bind("<ButtonRelease-1>", select_item)
@@ -533,21 +559,7 @@ initialize_database()
 
 
 
-# Заполнение рандомом
-# # Создание 50 записей
-# records = []
-#
-# for _ in range(50):
-#     record = {
-#         'name': generate_name(),
-#         'phone': generate_phone_number(),
-#         'gov_number': generate_gov_number(),
-#         'address': f"{random.randint(1, 100)} {random.choice(['ул.', 'пр.', 'пл.'])} {random.choice(['Ленина', 'Советская', 'Маяковского', 'Пушкина', 'Чкалова'])}",
-#         'email': f"{random.choice(['ivan', 'dmitry', 'maxim', 'olga', 'svetlana', 'anastasia', 'petra'])}{random.randint(100, 999)}@example.com"
-#     }
-#     records.append(record)
-# # Добавляем сгенерированные записи в базу
-# add_sample_records()
+
 update_database_view()
 
 root.mainloop()
